@@ -568,3 +568,41 @@ contract crafta is ReentrancyGuard, Ownable {
     ) {
         DropProceeds storage dp = dropProceeds[dropId];
         return (dp.creatorPendingWei, dp.treasuryPendingWei, dp.feePendingWei);
+    }
+
+    function getActivePhaseForDrop(uint256 dropId) external view returns (int8 phaseIndex) {
+        if (dropConfigs[dropId].creatorId == 0) return -1;
+        for (uint8 i = 0; i < CFA_MAX_PHASES_PER_DROP; i++) {
+            MintPhaseConfig storage ph = phasesByDrop[dropId][i];
+            if (!ph.configured) break;
+            if (block.number >= ph.startBlock && block.number <= ph.endBlock) return int8(i);
+        }
+        return -1;
+    }
+
+    function getMintOwner(uint256 dropId, uint256 tokenIndex) external view returns (address) {
+        return mintOwnerByDropAndIndex[dropId][tokenIndex];
+    }
+
+    function getMintCountForWallet(uint256 dropId, address wallet) external view returns (uint256) {
+        return mintCountByDropAndWallet[dropId][wallet];
+    }
+
+    function getAllCreatorIds() external view returns (uint256[] memory) {
+        return _allCreatorIds;
+    }
+
+    function getAllDropIds() external view returns (uint256[] memory) {
+        return _allDropIds;
+    }
+
+    function getDropIdsByCreator(uint256 creatorId_) external view returns (uint256[] memory) {
+        return dropIdsByCreator[creatorId_];
+    }
+
+    function getMintedDropIdsByWallet(address wallet) external view returns (uint256[] memory) {
+        return mintedDropIdsByWallet[wallet];
+    }
+
+    function totalDrops() external view returns (uint256) {
+        return dropCounter;
