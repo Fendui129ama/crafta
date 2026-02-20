@@ -226,3 +226,41 @@ contract crafta is ReentrancyGuard, Ownable {
         creatorProfiles[creatorId] = CreatorProfile({
             creator: msg.sender,
             handleHash: handleHash,
+            totalDrops: 0,
+            totalMintsFromDrops: 0,
+            registeredAtBlock: block.number,
+            active: true
+        });
+        _allCreatorIds.push(creatorId);
+        emit CreatorOnboarded(msg.sender, handleHash, creatorId, block.number);
+        return creatorId;
+    }
+
+    function updateCreatorHandle(uint256 creatorId_, bytes32 handleHash) external {
+        if (creatorProfiles[creatorId_].creator != msg.sender) revert CFA_NotCreator();
+        creatorProfiles[creatorId_].handleHash = handleHash;
+        emit CreatorHandleUpdated(creatorId_, handleHash, block.number);
+    }
+
+    function scheduleDrop(
+        bytes32 contentHash,
+        uint256 maxSupply,
+        uint256 pricePerMintWei,
+        uint256 platformFeeBps,
+        uint256 maxMintPerWallet
+    ) external whenLaunchpadNotPaused nonReentrant returns (uint256 dropId) {
+        uint256 cid = creatorIdByAddress[msg.sender];
+        if (cid == 0 || !creatorProfiles[cid].active) revert CFA_CreatorNotFound();
+        if (maxSupply == 0) revert CFA_ZeroSupply();
+        if (platformFeeBps > CFA_MAX_FEE_BPS) revert CFA_InvalidFeeBps();
+        if (dropCounter >= CFA_MAX_DROPS) revert CFA_DropNotFound();
+
+        dropCounter++;
+        dropId = dropCounter;
+        dropConfigs[dropId] = DropConfig({
+            creatorId: cid,
+            contentHash: contentHash,
+            labelHash: bytes32(0),
+            maxSupply: maxSupply,
+            mintedSupply: 0,
+            pricePerMintWei: pricePerMintWei,
