@@ -530,3 +530,41 @@ contract crafta is ReentrancyGuard, Ownable {
         uint256 maxMintPerWallet,
         uint256 createdAtBlock,
         bool paused,
+        bool finalized
+    ) {
+        DropConfig storage dc = dropConfigs[dropId];
+        return (
+            dc.creatorId,
+            dc.contentHash,
+            dc.labelHash,
+            dc.maxSupply,
+            dc.mintedSupply,
+            dc.pricePerMintWei,
+            dc.platformFeeBps,
+            dc.maxMintPerWallet,
+            dc.createdAtBlock,
+            dc.paused,
+            dc.finalized
+        );
+    }
+
+    function getPhaseConfig(uint256 dropId, uint8 phaseIndex) external view returns (
+        uint32 startBlock,
+        uint32 endBlock,
+        bool allowlistOnly,
+        bytes32 merkleRoot,
+        uint256 phaseMintCap,
+        uint256 phaseMintedCount,
+        bool configured
+    ) {
+        MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
+        return (ph.startBlock, ph.endBlock, ph.allowlistOnly, ph.merkleRoot, ph.phaseMintCap, ph.phaseMintedCount, ph.configured);
+    }
+
+    function getDropProceeds(uint256 dropId) external view returns (
+        uint256 creatorPendingWei,
+        uint256 treasuryPendingWei,
+        uint256 feePendingWei
+    ) {
+        DropProceeds storage dp = dropProceeds[dropId];
+        return (dp.creatorPendingWei, dp.treasuryPendingWei, dp.feePendingWei);
