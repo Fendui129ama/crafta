@@ -340,3 +340,41 @@ contract crafta is ReentrancyGuard, Ownable {
 
     function keeperPauseDrop(uint256 dropId, bool paused) external {
         if (msg.sender != launchpadKeeper) revert CFA_NotKeeper();
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        dropConfigs[dropId].paused = paused;
+        emit KeeperDropPauseToggled(dropId, paused, block.number);
+    }
+
+    function batchWithdrawTreasuryProceeds(uint256[] calldata dropIds) external nonReentrant {
+        if (msg.sender != treasury) revert CFA_NotTreasury();
+        if (dropIds.length == 0) revert CFA_EmptyBatch();
+        uint256 totalWei = 0;
+        for (uint256 i = 0; i < dropIds.length; i++) {
+            uint256 amt = dropProceeds[dropIds[i]].treasuryPendingWei;
+            if (amt > 0) {
+                dropProceeds[dropIds[i]].treasuryPendingWei = 0;
+                totalWei += amt;
+            }
+        }
+        if (totalWei == 0) revert CFA_ZeroAmount();
+        (bool sent,) = treasury.call{value: totalWei}("");
+        if (!sent) revert CFA_TransferFailed();
+        emit BatchTreasurySweep(dropIds, totalWei, block.number);
+    }
+
+    function batchWithdrawFeeProceeds(uint256[] calldata dropIds) external nonReentrant {
+        if (msg.sender != feeRecipient) revert CFA_NotFeeRecipient();
+        if (dropIds.length == 0) revert CFA_EmptyBatch();
+        uint256 totalWei = 0;
+        for (uint256 i = 0; i < dropIds.length; i++) {
+            uint256 amt = dropProceeds[dropIds[i]].feePendingWei;
+            if (amt > 0) {
+                dropProceeds[dropIds[i]].feePendingWei = 0;
+                totalWei += amt;
+            }
+        }
+        if (totalWei == 0) revert CFA_ZeroAmount();
+        (bool sent,) = feeRecipient.call{value: totalWei}("");
+        if (!sent) revert CFA_TransferFailed();
+        emit BatchFeeSweep(dropIds, totalWei, block.number);
+    }
