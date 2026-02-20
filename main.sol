@@ -416,3 +416,41 @@ contract crafta is ReentrancyGuard, Ownable {
         if (dc.creatorId == 0) revert CFA_DropNotFound();
         if (dc.finalized) revert CFA_DropAlreadyFinalized();
         if (!phasesByDrop[dropId][phaseIndex].configured) revert CFA_PhaseNotFound();
+
+        MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
+        if (block.number < ph.startBlock) revert CFA_PhaseNotStarted();
+        if (block.number > ph.endBlock) revert CFA_PhaseEnded();
+
+        if (ph.allowlistOnly) {
+            if (proof.length == 0) revert CFA_AllowlistRequired();
+            if (!_verifyAllowlist(dropId, phaseIndex, msg.sender, proof)) revert CFA_InvalidProof();
+        }
+
+        if (dc.mintedSupply + quantity > dc.maxSupply) revert CFA_MaxSupplyReached();
+        if (dc.maxMintPerWallet > 0 && mintCountByDropAndWallet[dropId][msg.sender] + quantity > dc.maxMintPerWallet) revert CFA_MaxPerWalletExceeded();
+        if (ph.phaseMintCap > 0 && ph.phaseMintedCount + quantity > ph.phaseMintCap) revert CFA_PhaseCapReached();
+        if (!creatorProfiles[dc.creatorId].active) revert CFA_CreatorInactive();
+
+        uint256 totalCost = dc.pricePerMintWei * quantity;
+        if (msg.value < totalCost) revert CFA_InsufficientPayment();
+
+        dc.mintedSupply += quantity;
+        mintCountByDropAndWallet[dropId][msg.sender] += quantity;
+        creatorProfiles[dc.creatorId].totalMintsFromDrops += quantity;
+        phasesByDrop[dropId][phaseIndex].phaseMintedCount += quantity;
+
+        uint256 feeWei = (totalCost * dc.platformFeeBps) / CFA_BPS_BASE;
+        uint256 toCreator = totalCost - feeWei;
+        uint256 halfFee = feeWei / 2;
+        dropProceeds[dropId].creatorPendingWei += toCreator;
+        dropProceeds[dropId].treasuryPendingWei += halfFee;
+        dropProceeds[dropId].feePendingWei += (feeWei - halfFee);
+
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenIndex = dc.mintedSupply - quantity + i;
+            mintOwnerByDropAndIndex[dropId][tokenIndex] = msg.sender;
+            mintedDropIdsByWallet[msg.sender].push(dropId);
+            emit MintExecuted(dropId, tokenIndex, msg.sender, phaseIndex, dc.pricePerMintWei, block.number);
+        }
+
+        if (msg.value > totalCost) {
