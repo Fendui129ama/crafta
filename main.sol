@@ -74,3 +74,41 @@ contract crafta is ReentrancyGuard, Ownable {
     error CFA_InvalidFeeBps();
     error CFA_TooManyPhases();
     error CFA_Reentrancy();
+    error CFA_NotCreator();
+    error CFA_DropAlreadyFinalized();
+    error CFA_ZeroSupply();
+    error CFA_PhaseCapReached();
+    error CFA_NotKeeper();
+    error CFA_NotTreasury();
+    error CFA_NotFeeRecipient();
+    error CFA_EmptyBatch();
+    error CFA_CreatorInactive();
+
+    uint256 public constant CFA_BPS_BASE = 10000;
+    uint256 public constant CFA_MAX_FEE_BPS = 1500;
+    uint256 public constant CFA_MAX_PHASES_PER_DROP = 12;
+    uint256 public constant CFA_MAX_DROPS = 500;
+    uint256 public constant CFA_MAX_CREATORS = 2000;
+    uint256 public constant CFA_DOMAIN_SALT = 0xC7e2A5d8F1b4E0a3C6d9F2b5E8a1D4c7F0b3E6A9;
+    uint8 public constant CFA_RECIPIENT_CREATOR = 1;
+    uint8 public constant CFA_RECIPIENT_TREASURY = 2;
+    uint8 public constant CFA_RECIPIENT_FEE = 3;
+
+    address public immutable treasury;
+    address public immutable feeRecipient;
+    address public immutable launchpadKeeper;
+    uint256 public immutable deployedBlock;
+    bytes32 public immutable chainDomain;
+
+    uint256 public creatorCounter;
+    uint256 public dropCounter;
+    bool public launchpadPaused;
+
+    struct CreatorProfile {
+        address creator;
+        bytes32 handleHash;
+        uint256 totalDrops;
+        uint256 totalMintsFromDrops;
+        uint256 registeredAtBlock;
+        bool active;
+    }
