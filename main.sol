@@ -302,3 +302,41 @@ contract crafta is ReentrancyGuard, Ownable {
             merkleRoot: merkleRoot,
             phaseMintCap: 0,
             phaseMintedCount: 0,
+            configured: true
+        });
+        emit PhaseAdded(dropId, slot, startBlock, endBlock, allowlistOnly, merkleRoot, block.number);
+    }
+
+    function setPhaseCap(uint256 dropId, uint8 phaseIndex, uint256 cap) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        if (!phasesByDrop[dropId][phaseIndex].configured) revert CFA_PhaseNotFound();
+        phasesByDrop[dropId][phaseIndex].phaseMintCap = cap;
+        emit PhaseCapSet(dropId, phaseIndex, cap, block.number);
+    }
+
+    function setDropLabel(uint256 dropId, bytes32 labelHash) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        if (dropConfigs[dropId].finalized) revert CFA_DropAlreadyFinalized();
+        dropConfigs[dropId].labelHash = labelHash;
+        emit DropLabelSet(dropId, labelHash, block.number);
+    }
+
+    function updateDropContentHash(uint256 dropId, bytes32 newContentHash) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        if (dropConfigs[dropId].finalized) revert CFA_DropAlreadyFinalized();
+        bytes32 prev = dropConfigs[dropId].contentHash;
+        dropConfigs[dropId].contentHash = newContentHash;
+        emit DropContentHashUpdated(dropId, prev, newContentHash, block.number);
+    }
+
+    function deactivateCreator(uint256 creatorId_) external onlyOwner {
+        if (creatorProfiles[creatorId_].creator == address(0)) revert CFA_CreatorNotFound();
+        creatorProfiles[creatorId_].active = false;
+        emit CreatorDeactivated(creatorId_, msg.sender, block.number);
+    }
+
+    function keeperPauseDrop(uint256 dropId, bool paused) external {
+        if (msg.sender != launchpadKeeper) revert CFA_NotKeeper();
