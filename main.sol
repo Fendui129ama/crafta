@@ -150,3 +150,41 @@ contract crafta is ReentrancyGuard, Ownable {
         uint256 createdAtBlock;
         bool paused;
         bool finalized;
+    }
+
+    struct CreatorView {
+        uint256 creatorId;
+        address creator;
+        bytes32 handleHash;
+        uint256 totalDrops;
+        uint256 totalMintsFromDrops;
+        uint256 registeredAtBlock;
+        bool active;
+    }
+
+    struct PhaseView {
+        uint8 phaseIndex;
+        uint32 startBlock;
+        uint32 endBlock;
+        bool allowlistOnly;
+        bytes32 merkleRoot;
+        uint256 phaseMintCap;
+        uint256 phaseMintedCount;
+        bool configured;
+    }
+
+    struct DropProceeds {
+        uint256 creatorPendingWei;
+        uint256 treasuryPendingWei;
+        uint256 feePendingWei;
+    }
+
+    mapping(uint256 => CreatorProfile) public creatorProfiles;
+    mapping(address => uint256) public creatorIdByAddress;
+    mapping(uint256 => DropConfig) public dropConfigs;
+    mapping(uint256 => MintPhaseConfig[12]) public phasesByDrop;
+    mapping(uint256 => DropProceeds) public dropProceeds;
+    mapping(uint256 => mapping(address => uint256)) public mintCountByDropAndWallet;
+    mapping(uint256 => mapping(uint256 => address)) public mintOwnerByDropAndIndex;
+    mapping(uint256 => uint256[]) public dropIdsByCreator;
+    mapping(address => uint256[]) public mintedDropIdsByWallet;
