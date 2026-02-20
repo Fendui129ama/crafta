@@ -454,3 +454,41 @@ contract crafta is ReentrancyGuard, Ownable {
         }
 
         if (msg.value > totalCost) {
+            (bool refundOk,) = msg.sender.call{value: msg.value - totalCost}("");
+            if (!refundOk) revert CFA_TransferFailed();
+        }
+    }
+
+    function _verifyAllowlist(uint256 dropId, uint8 phaseIndex, address account, bytes32[] calldata proof) internal view returns (bool) {
+        bytes32 root = phasesByDrop[dropId][phaseIndex].merkleRoot;
+        if (root == bytes32(0)) return false;
+        bytes32 leaf = keccak256(abi.encodePacked(chainDomain, dropId, phaseIndex, account));
+        for (uint256 i = 0; i < proof.length; i++) {
+            leaf = leaf < proof[i] ? keccak256(abi.encodePacked(leaf, proof[i])) : keccak256(abi.encodePacked(proof[i], leaf));
+        }
+        return leaf == root;
+    }
+
+    function withdrawCreatorProceeds(uint256 dropId) external nonReentrant {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dc.creatorId].creator != msg.sender) revert CFA_NotCreator();
+        uint256 amount = dropProceeds[dropId].creatorPendingWei;
+        if (amount == 0) revert CFA_ZeroAmount();
+        dropProceeds[dropId].creatorPendingWei = 0;
+        (bool sent,) = msg.sender.call{value: amount}("");
+        if (!sent) revert CFA_TransferFailed();
+        emit ProceedsSwept(msg.sender, amount, CFA_RECIPIENT_CREATOR, block.number);
+    }
+
+    function withdrawTreasuryProceeds(uint256 dropId) external nonReentrant {
+        if (msg.sender != treasury) revert CFA_NotCreator();
+        uint256 amount = dropProceeds[dropId].treasuryPendingWei;
+        if (amount == 0) revert CFA_ZeroAmount();
+        dropProceeds[dropId].treasuryPendingWei = 0;
+        (bool sent,) = treasury.call{value: amount}("");
+        if (!sent) revert CFA_TransferFailed();
+        emit ProceedsSwept(treasury, amount, CFA_RECIPIENT_TREASURY, block.number);
+    }
+
+    function withdrawFeeProceeds(uint256 dropId) external nonReentrant {
