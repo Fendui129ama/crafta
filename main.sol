@@ -492,3 +492,41 @@ contract crafta is ReentrancyGuard, Ownable {
     }
 
     function withdrawFeeProceeds(uint256 dropId) external nonReentrant {
+        if (msg.sender != feeRecipient) revert CFA_NotCreator();
+        uint256 amount = dropProceeds[dropId].feePendingWei;
+        if (amount == 0) revert CFA_ZeroAmount();
+        dropProceeds[dropId].feePendingWei = 0;
+        (bool sent,) = feeRecipient.call{value: amount}("");
+        if (!sent) revert CFA_TransferFailed();
+        emit ProceedsSwept(feeRecipient, amount, CFA_RECIPIENT_FEE, block.number);
+    }
+
+    function finalizeDrop(uint256 dropId) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        dropConfigs[dropId].finalized = true;
+    }
+
+    function getCreatorProfile(uint256 creatorId_) external view returns (
+        address creator,
+        bytes32 handleHash,
+        uint256 totalDrops,
+        uint256 totalMintsFromDrops,
+        uint256 registeredAtBlock,
+        bool active
+    ) {
+        CreatorProfile storage cp = creatorProfiles[creatorId_];
+        return (cp.creator, cp.handleHash, cp.totalDrops, cp.totalMintsFromDrops, cp.registeredAtBlock, cp.active);
+    }
+
+    function getDropConfig(uint256 dropId) external view returns (
+        uint256 creatorId,
+        bytes32 contentHash,
+        bytes32 labelHash,
+        uint256 maxSupply,
+        uint256 mintedSupply,
+        uint256 pricePerMintWei,
+        uint256 platformFeeBps,
+        uint256 maxMintPerWallet,
+        uint256 createdAtBlock,
+        bool paused,
