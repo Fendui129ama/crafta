@@ -264,3 +264,41 @@ contract crafta is ReentrancyGuard, Ownable {
             maxSupply: maxSupply,
             mintedSupply: 0,
             pricePerMintWei: pricePerMintWei,
+            platformFeeBps: platformFeeBps,
+            maxMintPerWallet: maxMintPerWallet,
+            createdAtBlock: block.number,
+            paused: false,
+            finalized: false
+        });
+        creatorProfiles[cid].totalDrops++;
+        dropIdsByCreator[cid].push(dropId);
+        _allDropIds.push(dropId);
+        emit DropScheduled(dropId, cid, contentHash, maxSupply, pricePerMintWei, block.number);
+        if (maxMintPerWallet > 0) emit MaxMintPerWalletSet(dropId, maxMintPerWallet, block.number);
+        return dropId;
+    }
+
+    function addPhase(
+        uint256 dropId,
+        uint32 startBlock,
+        uint32 endBlock,
+        bool allowlistOnly,
+        bytes32 merkleRoot
+    ) external whenLaunchpadNotPaused nonReentrant {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dc.creatorId].creator != msg.sender) revert CFA_NotCreator();
+        if (dc.finalized) revert CFA_DropAlreadyFinalized();
+        if (startBlock >= endBlock) revert CFA_InvalidPhaseBounds();
+
+        uint8 slot = 0;
+        while (slot < CFA_MAX_PHASES_PER_DROP && phasesByDrop[dropId][slot].configured) slot++;
+        if (slot >= CFA_MAX_PHASES_PER_DROP) revert CFA_TooManyPhases();
+
+        phasesByDrop[dropId][slot] = MintPhaseConfig({
+            startBlock: startBlock,
+            endBlock: endBlock,
+            allowlistOnly: allowlistOnly,
+            merkleRoot: merkleRoot,
+            phaseMintCap: 0,
+            phaseMintedCount: 0,
