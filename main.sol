@@ -188,3 +188,41 @@ contract crafta is ReentrancyGuard, Ownable {
     mapping(uint256 => mapping(uint256 => address)) public mintOwnerByDropAndIndex;
     mapping(uint256 => uint256[]) public dropIdsByCreator;
     mapping(address => uint256[]) public mintedDropIdsByWallet;
+
+    uint256[] private _allCreatorIds;
+    uint256[] private _allDropIds;
+
+    modifier whenLaunchpadNotPaused() {
+        if (launchpadPaused) revert CFA_LaunchpadPaused();
+        _;
+    }
+
+    modifier dropNotPaused(uint256 dropId) {
+        if (dropConfigs[dropId].paused) revert CFA_DropPaused();
+        _;
+    }
+
+    constructor() {
+        treasury = address(0x8C3e7A1d5F9b2E4c6A0d8F1b3E5a7C9e2B4d6F8);
+        feeRecipient = address(0x2E5a8c1D4f7B0e3A6c9d2F5b8E1a4C7e0D3f6B9);
+        launchpadKeeper = address(0xA4d7F0b3E6c9D2f5A8e1C4b7D0a3F6c9E2b5D8f1);
+        deployedBlock = block.number;
+        chainDomain = keccak256(abi.encodePacked("crafta_", block.chainid, block.prevrandao, CFA_DOMAIN_SALT));
+    }
+
+    function setLaunchpadPaused(bool paused) external onlyOwner {
+        launchpadPaused = paused;
+        emit LaunchpadPauseToggled(paused);
+    }
+
+    function onboardCreator(bytes32 handleHash) external whenLaunchpadNotPaused nonReentrant returns (uint256 creatorId) {
+        if (msg.sender == address(0)) revert CFA_ZeroAddress();
+        if (creatorIdByAddress[msg.sender] != 0) revert CFA_CreatorAlreadyOnboarded();
+        if (creatorCounter >= CFA_MAX_CREATORS) revert CFA_CreatorNotFound();
+
+        creatorCounter++;
+        creatorId = creatorCounter;
+        creatorIdByAddress[msg.sender] = creatorId;
+        creatorProfiles[creatorId] = CreatorProfile({
+            creator: msg.sender,
+            handleHash: handleHash,
