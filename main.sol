@@ -378,3 +378,41 @@ contract crafta is ReentrancyGuard, Ownable {
         if (!sent) revert CFA_TransferFailed();
         emit BatchFeeSweep(dropIds, totalWei, block.number);
     }
+
+    function updatePhaseBounds(uint256 dropId, uint8 phaseIndex, uint32 startBlock, uint32 endBlock) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        if (!phasesByDrop[dropId][phaseIndex].configured) revert CFA_PhaseNotFound();
+        if (startBlock >= endBlock) revert CFA_InvalidPhaseBounds();
+
+        phasesByDrop[dropId][phaseIndex].startBlock = startBlock;
+        phasesByDrop[dropId][phaseIndex].endBlock = endBlock;
+        emit PhaseUpdated(dropId, phaseIndex, startBlock, endBlock, block.number);
+    }
+
+    function setAllowlistProof(uint256 dropId, uint8 phaseIndex, bytes32 merkleRoot) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        if (!phasesByDrop[dropId][phaseIndex].configured) revert CFA_PhaseNotFound();
+
+        phasesByDrop[dropId][phaseIndex].merkleRoot = merkleRoot;
+        emit AllowlistProofSet(dropId, phaseIndex, merkleRoot, block.number);
+    }
+
+    function setDropPaused(uint256 dropId, bool paused) external {
+        if (dropConfigs[dropId].creatorId == 0) revert CFA_DropNotFound();
+        if (creatorProfiles[dropConfigs[dropId].creatorId].creator != msg.sender) revert CFA_NotCreator();
+        dropConfigs[dropId].paused = paused;
+        emit DropPauseToggled(dropId, paused);
+    }
+
+    function mint(
+        uint256 dropId,
+        uint8 phaseIndex,
+        uint256 quantity,
+        bytes32[] calldata proof
+    ) external payable whenLaunchpadNotPaused dropNotPaused(dropId) nonReentrant {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) revert CFA_DropNotFound();
+        if (dc.finalized) revert CFA_DropAlreadyFinalized();
+        if (!phasesByDrop[dropId][phaseIndex].configured) revert CFA_PhaseNotFound();
