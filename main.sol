@@ -834,3 +834,41 @@ contract crafta is ReentrancyGuard, Ownable {
                     break;
                 }
             }
+        }
+        dropIds = new uint256[](count);
+        uint256 k = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            for (uint8 j = 0; j < CFA_MAX_PHASES_PER_DROP; j++) {
+                MintPhaseConfig storage ph = phasesByDrop[all[i]][j];
+                if (!ph.configured) break;
+                if (block.number >= ph.startBlock && block.number <= ph.endBlock && !dropConfigs[all[i]].paused && !dropConfigs[all[i]].finalized) {
+                    dropIds[k++] = all[i];
+                    break;
+                }
+            }
+        }
+    }
+
+    function getOwnedTokenIndicesForDrop(uint256 dropId, address wallet) external view returns (uint256[] memory indices) {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) return new uint256[](0);
+        uint256 supply = dc.mintedSupply;
+        uint256 count = 0;
+        for (uint256 i = 0; i < supply; i++) {
+            if (mintOwnerByDropAndIndex[dropId][i] == wallet) count++;
+        }
+        indices = new uint256[](count);
+        count = 0;
+        for (uint256 i = 0; i < supply; i++) {
+            if (mintOwnerByDropAndIndex[dropId][i] == wallet) indices[count++] = i;
+        }
+    }
+
+    function getPhaseStatus(uint256 dropId, uint8 phaseIndex) external view returns (uint8 status) {
+        MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
+        if (!ph.configured) return 0;
+        if (block.number < ph.startBlock) return 1;
+        if (block.number > ph.endBlock) return 2;
+        return 3;
+    }
+
