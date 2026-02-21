@@ -644,3 +644,41 @@ contract crafta is ReentrancyGuard, Ownable {
     function getPhaseView(uint256 dropId, uint8 phaseIndex) external view returns (PhaseView memory v) {
         MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
         if (!ph.configured) return v;
+        v.phaseIndex = phaseIndex;
+        v.startBlock = ph.startBlock;
+        v.endBlock = ph.endBlock;
+        v.allowlistOnly = ph.allowlistOnly;
+        v.merkleRoot = ph.merkleRoot;
+        v.phaseMintCap = ph.phaseMintCap;
+        v.phaseMintedCount = ph.phaseMintedCount;
+        v.configured = true;
+    }
+
+    function getDropViewBatch(uint256[] calldata dropIds) external view returns (DropView[] memory out) {
+        out = new DropView[](dropIds.length);
+        for (uint256 i = 0; i < dropIds.length; i++) {
+            DropConfig storage dc = dropConfigs[dropIds[i]];
+            if (dc.creatorId == 0) continue;
+            out[i] = DropView({
+                dropId: dropIds[i],
+                creatorId: dc.creatorId,
+                contentHash: dc.contentHash,
+                labelHash: dc.labelHash,
+                maxSupply: dc.maxSupply,
+                mintedSupply: dc.mintedSupply,
+                pricePerMintWei: dc.pricePerMintWei,
+                platformFeeBps: dc.platformFeeBps,
+                maxMintPerWallet: dc.maxMintPerWallet,
+                createdAtBlock: dc.createdAtBlock,
+                paused: dc.paused,
+                finalized: dc.finalized
+            });
+        }
+    }
+
+    function getCreatorViewBatch(uint256[] calldata creatorIds) external view returns (CreatorView[] memory out) {
+        out = new CreatorView[](creatorIds.length);
+        for (uint256 i = 0; i < creatorIds.length; i++) {
+            CreatorProfile storage cp = creatorProfiles[creatorIds[i]];
+            if (cp.creator == address(0)) continue;
+            out[i] = CreatorView({
