@@ -796,3 +796,41 @@ contract crafta is ReentrancyGuard, Ownable {
         return (treasury, feeRecipient, launchpadKeeper, deployedBlock, creatorCounter, dropCounter, launchpadPaused);
     }
 
+    function getDropProceedsSnapshot(uint256 dropId) external view returns (
+        uint256 creatorPendingWei,
+        uint256 treasuryPendingWei,
+        uint256 feePendingWei,
+        uint256 totalMintedWei
+    ) {
+        DropProceeds storage dp = dropProceeds[dropId];
+        DropConfig storage dc = dropConfigs[dropId];
+        uint256 totalMinted = dc.mintedSupply * dc.pricePerMintWei;
+        return (dp.creatorPendingWei, dp.treasuryPendingWei, dp.feePendingWei, totalMinted);
+    }
+
+    function supportsDrop(uint256 dropId) external pure returns (bool) {
+        return dropId > 0 && dropId <= CFA_MAX_DROPS;
+    }
+
+    function getChainDomain() external view returns (bytes32) {
+        return chainDomain;
+    }
+
+    function estimateMintCost(uint256 dropId, uint256 quantity) external view returns (uint256 totalWei) {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) return 0;
+        return dc.pricePerMintWei * quantity;
+    }
+
+    function getDropIdsWithActivePhase() external view returns (uint256[] memory dropIds) {
+        uint256[] memory all = _allDropIds;
+        uint256 count = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            for (uint8 j = 0; j < CFA_MAX_PHASES_PER_DROP; j++) {
+                MintPhaseConfig storage ph = phasesByDrop[all[i]][j];
+                if (!ph.configured) break;
+                if (block.number >= ph.startBlock && block.number <= ph.endBlock && !dropConfigs[all[i]].paused && !dropConfigs[all[i]].finalized) {
+                    count++;
+                    break;
+                }
+            }
