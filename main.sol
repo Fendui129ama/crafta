@@ -720,3 +720,41 @@ contract crafta is ReentrancyGuard, Ownable {
         if (offset >= len) return new uint256[](0);
         uint256 end = offset + limit;
         if (end > len) end = len;
+        uint256 size = end - offset;
+        ids = new uint256[](size);
+        for (uint256 i = 0; i < size; i++) ids[i] = _allDropIds[offset + i];
+    }
+
+    function getCreatorIdsPaginated(uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        uint256 len = _allCreatorIds.length;
+        if (offset >= len) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > len) end = len;
+        uint256 size = end - offset;
+        ids = new uint256[](size);
+        for (uint256 i = 0; i < size; i++) ids[i] = _allCreatorIds[offset + i];
+    }
+
+    function computeAllowlistLeaf(uint256 dropId, uint8 phaseIndex, address account) external view returns (bytes32 leaf) {
+        return keccak256(abi.encodePacked(chainDomain, dropId, phaseIndex, account));
+    }
+
+    function getRemainingSupply(uint256 dropId) external view returns (uint256) {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) return 0;
+        return dc.maxSupply > dc.mintedSupply ? dc.maxSupply - dc.mintedSupply : 0;
+    }
+
+    function getRemainingPhaseCap(uint256 dropId, uint8 phaseIndex) external view returns (uint256) {
+        MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
+        if (!ph.configured || ph.phaseMintCap == 0) return type(uint256).max;
+        return ph.phaseMintCap > ph.phaseMintedCount ? ph.phaseMintCap - ph.phaseMintedCount : 0;
+    }
+
+    function getWalletRemainingMintAllowance(uint256 dropId, address wallet) external view returns (uint256) {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0 || dc.maxMintPerWallet == 0) return type(uint256).max;
+        uint256 used = mintCountByDropAndWallet[dropId][wallet];
+        return used >= dc.maxMintPerWallet ? 0 : dc.maxMintPerWallet - used;
+    }
+
