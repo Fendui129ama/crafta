@@ -758,3 +758,41 @@ contract crafta is ReentrancyGuard, Ownable {
         return used >= dc.maxMintPerWallet ? 0 : dc.maxMintPerWallet - used;
     }
 
+    function isPhaseActive(uint256 dropId, uint8 phaseIndex) external view returns (bool) {
+        MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
+        if (!ph.configured) return false;
+        return block.number >= ph.startBlock && block.number <= ph.endBlock;
+    }
+
+    function getPhaseCountForDrop(uint256 dropId) external view returns (uint8 count) {
+        for (uint8 i = 0; i < CFA_MAX_PHASES_PER_DROP; i++) {
+            if (phasesByDrop[dropId][i].configured) count++;
+            else break;
+        }
+    }
+
+    function getTotalProceedsPendingForCreator(uint256 creatorId_) external view returns (uint256 total) {
+        uint256[] storage dids = dropIdsByCreator[creatorId_];
+        for (uint256 i = 0; i < dids.length; i++) total += dropProceeds[dids[i]].creatorPendingWei;
+    }
+
+    function getTotalProceedsPendingTreasury() external view returns (uint256 total) {
+        for (uint256 i = 1; i <= dropCounter; i++) total += dropProceeds[i].treasuryPendingWei;
+    }
+
+    function getTotalProceedsPendingFee() external view returns (uint256 total) {
+        for (uint256 i = 1; i <= dropCounter; i++) total += dropProceeds[i].feePendingWei;
+    }
+
+    function getConfigSnapshot() external view returns (
+        address treasury_,
+        address feeRecipient_,
+        address launchpadKeeper_,
+        uint256 deployedBlock_,
+        uint256 creatorCounter_,
+        uint256 dropCounter_,
+        bool launchpadPaused_
+    ) {
+        return (treasury, feeRecipient, launchpadKeeper, deployedBlock, creatorCounter, dropCounter, launchpadPaused);
+    }
+
