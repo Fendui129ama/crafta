@@ -606,3 +606,41 @@ contract crafta is ReentrancyGuard, Ownable {
 
     function totalDrops() external view returns (uint256) {
         return dropCounter;
+    }
+
+    function totalCreators() external view returns (uint256) {
+        return creatorCounter;
+    }
+
+    function getDropView(uint256 dropId) external view returns (DropView memory v) {
+        DropConfig storage dc = dropConfigs[dropId];
+        if (dc.creatorId == 0) return v;
+        v.dropId = dropId;
+        v.creatorId = dc.creatorId;
+        v.contentHash = dc.contentHash;
+        v.labelHash = dc.labelHash;
+        v.maxSupply = dc.maxSupply;
+        v.mintedSupply = dc.mintedSupply;
+        v.pricePerMintWei = dc.pricePerMintWei;
+        v.platformFeeBps = dc.platformFeeBps;
+        v.maxMintPerWallet = dc.maxMintPerWallet;
+        v.createdAtBlock = dc.createdAtBlock;
+        v.paused = dc.paused;
+        v.finalized = dc.finalized;
+    }
+
+    function getCreatorView(uint256 creatorId_) external view returns (CreatorView memory v) {
+        CreatorProfile storage cp = creatorProfiles[creatorId_];
+        if (cp.creator == address(0)) return v;
+        v.creatorId = creatorId_;
+        v.creator = cp.creator;
+        v.handleHash = cp.handleHash;
+        v.totalDrops = cp.totalDrops;
+        v.totalMintsFromDrops = cp.totalMintsFromDrops;
+        v.registeredAtBlock = cp.registeredAtBlock;
+        v.active = cp.active;
+    }
+
+    function getPhaseView(uint256 dropId, uint8 phaseIndex) external view returns (PhaseView memory v) {
+        MintPhaseConfig storage ph = phasesByDrop[dropId][phaseIndex];
+        if (!ph.configured) return v;
