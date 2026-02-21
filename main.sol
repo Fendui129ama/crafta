@@ -682,3 +682,41 @@ contract crafta is ReentrancyGuard, Ownable {
             CreatorProfile storage cp = creatorProfiles[creatorIds[i]];
             if (cp.creator == address(0)) continue;
             out[i] = CreatorView({
+                creatorId: creatorIds[i],
+                creator: cp.creator,
+                handleHash: cp.handleHash,
+                totalDrops: cp.totalDrops,
+                totalMintsFromDrops: cp.totalMintsFromDrops,
+                registeredAtBlock: cp.registeredAtBlock,
+                active: cp.active
+            });
+        }
+    }
+
+    function getPhasesForDrop(uint256 dropId) external view returns (PhaseView[] memory out) {
+        uint8 count = 0;
+        for (uint8 i = 0; i < CFA_MAX_PHASES_PER_DROP; i++) {
+            if (phasesByDrop[dropId][i].configured) count++;
+            else break;
+        }
+        out = new PhaseView[](count);
+        for (uint8 i = 0; i < count; i++) {
+            MintPhaseConfig storage ph = phasesByDrop[dropId][i];
+            out[i] = PhaseView({
+                phaseIndex: i,
+                startBlock: ph.startBlock,
+                endBlock: ph.endBlock,
+                allowlistOnly: ph.allowlistOnly,
+                merkleRoot: ph.merkleRoot,
+                phaseMintCap: ph.phaseMintCap,
+                phaseMintedCount: ph.phaseMintedCount,
+                configured: true
+            });
+        }
+    }
+
+    function getDropIdsPaginated(uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        uint256 len = _allDropIds.length;
+        if (offset >= len) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > len) end = len;
